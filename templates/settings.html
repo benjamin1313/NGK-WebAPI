@@ -1,0 +1,51 @@
+<html>
+<head>
+<title>NGK WebAPI Settings</title>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.3.0/socket.io.js"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+</head>
+<body>
+
+<center><h1>NKG WebAPI Settings</h1></center>
+
+
+<center>
+<p>API Calls</p>
+<ul>
+  <li>~/led/on</li>
+  <li>~/led/off</li>
+  <li>~/led/toggle</li>
+  <li>~/button</li>
+</ul>
+
+
+<script type="text/javascript">
+var audio = new Audio('teleporter.mp3');
+
+function connect(){
+  var socket = io.connect('http://raspberrypi.waoo.dk:5000/alert');
+  socket.on('connect', function(){
+    $("#messages").append('<li>You wil now revice a message then the button is activated.</li>');
+  });
+
+  socket.on('message',function(data){
+    var msg;
+    if (data['buttonState'] == 1){
+      msg = "Kontakten er Slået til";
+      audio.play();
+    }else{
+      msg = "Kontakten er nu slået fra";
+      audio.play();
+    }
+    $("#messages").append('<li>'+msg+'</li>');
+  });
+};
+</script>
+
+<button type="button" onclick="connect()" id="activateAlarm">Activate Alarm</button>
+<ul id="messages" style="list-style-type: none;">
+</ul>
+</center>
+
+</body>
+</html>

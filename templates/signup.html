@@ -1,0 +1,31 @@
+<html>
+<head>
+<title>NGK WebAPI signup</title>
+<script type="text/javascript" scr="https//cdnjs.cloudflare.com/ajax/libs/socket.io/1.4.8/socket.io.min.js"></script>
+</head>
+<body>
+
+<center><h1>NGK WebAPI signup</h1></center>
+
+</br>
+</br>
+</br>
+
+
+<center><h2 style="color:red;">This site was made for an assignment at uni.
+</br>Please do not use a password you use elsewhere.</h2></center>
+
+<center>
+{% block content %}
+  <form method="post">
+    <label for="username">Username</label>
+    <input name="username" id="username" required>
+    <label for="password">Password</label>
+    <input type="password" name="password" id="password" required>
+    <input type="submit" value="Log In">
+  </form>
+{% endblock %}
+</center>
+
+</body>
+</html>
