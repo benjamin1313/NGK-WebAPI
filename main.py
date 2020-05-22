@@ -1,14 +1,21 @@
+# coding=utf-8
 from gpiozero import LED, Button
-from flask import Flask, render_template
+from flask import Flask, render_template, jsonify, request
 from flask_socketio import SocketIO, send
+from flask_jwt_extended import (JWTManager, jwt_required, create_access_token, get_jwt_identity)
 from time import sleep
 from threading import Thread
+import datetime
+
+# SocketIO guide - https://www.youtube.com/watch?v=RdSrkkrj3l4
+# JWT guide - https://flask-jwt-extended.readthedocs.io/en/stable/basic_usage/
 
 THREAD = Thread()
-# SocketIO guide - https://www.youtube.com/watch?v=RdSrkkrj3l4
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = "Some-Secret"
+app.config['JWT_SECRET_KEY'] = "super-secret"
+jwt = JWTManager(app)
 socketio = SocketIO(app)
 led = LED(18)
 button = Button(17)
@@ -39,7 +46,29 @@ class ButtonThread(Thread):
         self.get_data()
 
 
+# Tjekker om der er en bruger ved
+def user_exists(username, mode='r'):
+    try:
+        f = open("users/"+username, mode)
+        f.close()
+    except IOError:
+        return False
+    return True
 
+def create_user(username,password):
+    try:
+        f = open("users/"+username, mode="a+")
+        f.write(password)
+        f.close()
+    except IOError:
+        return False
+    return True
+
+def get_user_password(username):
+    f = open("users/"+username, mode="r")
+    password = f.read()
+    f.close()
+    return password
 
 
 @socketio.on('connect', namespace='/alert')
@@ -50,6 +79,7 @@ def sendSwitchData():
         THREAD = ButtonThread()
         THREAD.start()
 
+# simpel homepage for grafisk adgang til api.
 @app.route("/")
 def welcome():
     return render_template('index.html')
@@ -60,10 +90,51 @@ def welcome():
 def settings():
     return render_template('settings.html')
 
-#create account
-@app.route("/signup", methods=['POST'])
-def signuppage():
-    return render_template('signup.html')
+#login - taken from jwt guide and modifide
+@app.route("/login", methods=['POST'])
+def login():
+    if not request.is_json:
+        return jsonify({"msg": "Missing JSON in request"}), 400
+
+    username = request.json.get('username', None)
+    password = request.json.get('password', None)
+    if not username:
+        return jsonify({"msg": "Missing username parameter"}), 400
+    if not password:
+        return jsonify({"msg": "Missing password parameter"}), 400
+
+    if not user_exists(username):
+        return jsonify({"msg": "User does not exist"}), 401
+
+    if not password == get_user_password(username):
+        return jsonify({"msg": "Wrong password"}), 401
+
+    # Identity can be any data that is json serializable
+    expires = datetime.timedelta(seconds=120) #udløber efter 2 minuter så brugeren skal lave en ny
+    access_token = create_access_token(identity=username, expires_delta=expires)
+    return jsonify(access_token=access_token), 200
+
+#registers a new user
+@app.route("/register", methods=['POST'])
+def register():
+    if not request.is_json:
+        return jsonify({"msg": "Missing JSON in request"}), 400
+
+    username = request.json.get('username', None)
+    password = request.json.get('password', None)
+    if not username:
+        return jsonify({"msg": "Missing username parameter"}), 400
+    if not password:
+        return jsonify({"msg": "Missing password parameter"}), 400
+
+    if user_exists(username):
+        return jsonify({"msg": "Username is taken"}), 401
+
+    create_user(username,password)
+
+    return jsonify({"msg": "User succesfully registerd"}), 200
+
+
 
 #return status of button
 @app.route("/button", methods=['GET'])
@@ -75,18 +146,19 @@ def buttonState():
 
 #turn LED on or off
 @app.route("/led/<action>", methods=['POST'])
+@jwt_required
 def toggleLED(action):
     if action == "toggle":
         led.toggle()
-        return "toggled LED"
+        return jsonify({"msg": "LED toggled"}), 200
     if action == "on":
         led.on()
-        return "LED turned on"
+        return jsonify({"msg": "LED on"}), 200
     elif action == "off":
         led.off()
-        return "LED turned off"
+        return jsonify({"msg": "LED off"}), 200
     else:
-        return "unknow action"
+        return jsonify({"msg": "Unknow action"}), 200
 
 
 
